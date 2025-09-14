@@ -46,8 +46,21 @@ class StoreIntegrationService {
       // Get last sync date
       const lastSync = store.last_sync_at ? new Date(store.last_sync_at).toISOString() : null;
 
-      // Fetch orders from the store
-      const orders = await service.getOrders(lastSync);
+      // Fetch orders from the store with retry logic
+      console.log(`Syncing store ${store.name} (${store.type}) - Last sync: ${lastSync}`);
+
+      let orders;
+      try {
+        orders = await service.getOrders(lastSync);
+        console.log(`Fetched ${orders.length} orders from ${store.name}`);
+      } catch (fetchError) {
+        console.error(`Failed to fetch orders from ${store.name}:`, fetchError.message);
+        return {
+          success: false,
+          error: `Failed to fetch orders: ${fetchError.message}`,
+          store_name: store.name
+        };
+      }
 
       let syncedOrders = 0;
       let errors = [];

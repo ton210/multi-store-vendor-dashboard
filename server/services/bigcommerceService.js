@@ -5,36 +5,61 @@ class BigCommerceService {
     this.storeHash = storeConfig.api_credentials.store_hash || storeConfig.api_credentials.BC_STORE_HASH;
     this.accessToken = storeConfig.api_credentials.access_token || storeConfig.api_credentials.bc_access_token || storeConfig.api_credentials.BC_ACCESS_TOKEN;
 
+    console.log('BigCommerce Config:', {
+      storeHash: this.storeHash,
+      hasToken: !!this.accessToken,
+      tokenLength: this.accessToken?.length
+    });
+
     this.axiosInstance = axios.create({
-      baseURL: `https://api.bigcommerce.com/stores/${this.storeHash}/v2`,
+      baseURL: `https://api.bigcommerce.com/stores/${this.storeHash}/v3`,
       headers: {
         'X-Auth-Token': this.accessToken,
         'Content-Type': 'application/json',
         'Accept': 'application/json'
-      }
+      },
+      timeout: 30000
     });
   }
 
-  async getOrders(since = null, limit = 250) {
+  async getOrders(since = null, limit = 50) {
     try {
       const params = {
-        limit,
-        sort: 'date_created:desc'
+        limit: Math.min(limit, 50), // BigCommerce v3 has lower limits
+        sort: 'date_created',
+        direction: 'desc',
+        'status_id:in': '1,2,3,4,5,6,7,8,9,10,11'
       };
 
       if (since) {
         params.min_date_created = since;
       }
 
+      console.log('Fetching orders with params:', params);
+
       const response = await this.axiosInstance.get('/orders', { params });
-      const orders = await Promise.all(
-        response.data.map(order => this.getOrderWithItems(order.id))
-      );
+      console.log('BigCommerce orders response:', response.data?.length || 0, 'orders');
+
+      // Process orders and get items
+      const orders = [];
+      for (const order of response.data || []) {
+        try {
+          const orderWithItems = await this.getOrderWithItems(order.id);
+          orders.push(orderWithItems);
+          // Add delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (itemError) {
+          console.error(`Failed to get items for order ${order.id}:`, itemError.message);
+          // Still include order even if items fail
+          orders.push(this.transformOrder(order, []));
+        }
+      }
 
       return orders;
     } catch (error) {
       console.error('BigCommerce API Error:', error.response?.data || error.message);
-      throw new Error(`Failed to fetch orders from BigCommerce: ${error.message}`);
+      console.error('Request config:', error.config?.url, error.config?.headers);
+      throw new Error(`Failed to fetch orders from BigCommerce: ${error.response?.status || error.message}`);
     }
   }
 
@@ -49,16 +74,22 @@ class BigCommerceService {
 
   async getOrderWithItems(orderId) {
     try {
-      const [orderResponse, itemsResponse] = await Promise.all([
-        this.axiosInstance.get(`/orders/${orderId}`),
-        this.axiosInstance.get(`/orders/${orderId}/products`)
-      ]);
+      // Add delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      const orderResponse = await this.axiosInstance.get(`/orders/${orderId}`);
+
+      // Add delay before getting items
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      const itemsResponse = await this.axiosInstance.get(`/orders/${orderId}/products`);
 
       const order = orderResponse.data;
       const items = itemsResponse.data;
 
       return this.transformOrder(order, items);
     } catch (error) {
+      console.error(`Error fetching order ${orderId}:`, error.response?.status, error.response?.data);
       throw error;
     }
   }
@@ -96,6 +127,8 @@ class BigCommerceService {
   }
 
   transformOrder(bcOrder, items = []) {
+    const processingStatus = this.getProcessingStatus(bcOrder.status_id);
+
     return {
       external_order_id: bcOrder.id.toString(),
       order_number: bcOrder.id.toString(),
@@ -104,21 +137,21 @@ class BigCommerceService {
       customer_phone: bcOrder.billing_address?.phone,
       billing_address: bcOrder.billing_address,
       shipping_address: bcOrder.shipping_addresses?.[0],
-      total_amount: parseFloat(bcOrder.total_inc_tax || bcOrder.total_ex_tax),
+      total_amount: parseFloat(bcOrder.total_inc_tax || bcOrder.total_ex_tax || 0),
       currency: bcOrder.currency_code || 'USD',
-      order_status: this.getOrderStatus(bcOrder.status_id),
-      fulfillment_status: bcOrder.status === 'Shipped' ? 'fulfilled' : 'unfulfilled',
+      order_status: processingStatus,
+      fulfillment_status: processingStatus === 'SHIPPED' ? 'fulfilled' : 'unfulfilled',
       payment_status: bcOrder.payment_status || 'pending',
-      notes: bcOrder.customer_message || bcOrder.staff_notes,
-      tags: '',
+      notes: bcOrder.customer_message || bcOrder.staff_notes || '',
+      tags: bcOrder.status_id ? `status_${bcOrder.status_id}` : '',
       order_date: new Date(bcOrder.date_created),
       items: items.map(item => ({
         external_item_id: item.id.toString(),
         product_name: item.name,
         sku: item.sku,
         quantity: item.quantity,
-        unit_price: parseFloat(item.base_price),
-        total_price: parseFloat(item.total_inc_tax || item.total_ex_tax),
+        unit_price: parseFloat(item.base_price || item.price || 0),
+        total_price: parseFloat(item.total_inc_tax || item.total_ex_tax || 0),
         variant_title: item.product_options?.map(opt => `${opt.display_name}: ${opt.display_value}`).join(', ') || '',
         product_data: {
           product_id: item.product_id,
@@ -132,6 +165,7 @@ class BigCommerceService {
 
   getOrderStatus(statusId) {
     const statuses = {
+      0: 'incomplete',
       1: 'pending',
       2: 'shipped',
       3: 'partially_shipped',
@@ -142,10 +176,36 @@ class BigCommerceService {
       8: 'awaiting_pickup',
       9: 'awaiting_shipment',
       10: 'completed',
-      11: 'awaiting_fulfillment'
+      11: 'awaiting_fulfillment',
+      12: 'manual_verification_required',
+      13: 'disputed',
+      14: 'partially_refunded'
     };
 
     return statuses[statusId] || 'pending';
+  }
+
+  getProcessingStatus(statusId) {
+    // Map to our internal processing statuses
+    const processingStatuses = {
+      0: 'DRAFT',
+      1: 'PROCESSING',
+      2: 'SHIPPED',
+      3: 'SHIPPED',
+      4: 'SHIPPED',
+      5: 'CANCELLED',
+      6: 'CANCELLED',
+      7: 'PROCESSING',
+      8: 'PROCESSING',
+      9: 'PROCESSING',
+      10: 'SHIPPED',
+      11: 'PROCESSING',
+      12: 'PROCESSING',
+      13: 'PROCESSING',
+      14: 'SHIPPED'
+    };
+
+    return processingStatuses[statusId] || 'PROCESSING';
   }
 }
 

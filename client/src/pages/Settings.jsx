@@ -43,7 +43,7 @@ import {
   Edit,
   Visibility,
   VisibilityOff,
-  Settings,
+  Settings as SettingsIcon,
   People
 } from '@mui/icons-material';
 import axios from 'axios';
@@ -328,7 +328,7 @@ const Settings = () => {
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={activeTab} onChange={handleTabChange}>
             <Tab label="Profile" icon={<Business />} />
-            <Tab label="System" icon={<Settings />} />
+            <Tab label="System" icon={<SettingsIcon />} />
             <Tab label="Security" icon={<Security />} />
             <Tab label="Users" icon={<People />} />
           </Tabs>

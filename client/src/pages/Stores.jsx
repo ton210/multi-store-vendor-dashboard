@@ -63,7 +63,7 @@ const Stores = () => {
       access_token: '',
       // BigCommerce
       client_id: '',
-      access_token: '',
+      bc_access_token: '',
       store_hash: '',
       // WooCommerce
       consumer_key: '',
@@ -101,6 +101,7 @@ const Stores = () => {
       api_credentials: {
         access_token: '',
         client_id: '',
+        bc_access_token: '',
         store_hash: '',
         consumer_key: '',
         consumer_secret: ''
@@ -164,8 +165,8 @@ const Stores = () => {
       if (!formData.api_credentials.client_id.trim()) {
         newErrors.client_id = 'Client ID is required for BigCommerce';
       }
-      if (!formData.api_credentials.access_token.trim()) {
-        newErrors.access_token = 'Access token is required for BigCommerce';
+      if (!formData.api_credentials.bc_access_token.trim()) {
+        newErrors.bc_access_token = 'Access token is required for BigCommerce';
       }
       if (!formData.api_credentials.store_hash.trim()) {
         newErrors.store_hash = 'Store hash is required for BigCommerce';
@@ -313,10 +314,10 @@ const Stores = () => {
             <TextField
               fullWidth
               label="Access Token"
-              value={formData.api_credentials.access_token || ''}
-              onChange={(e) => handleFormChange('api_credentials.access_token', e.target.value)}
-              error={!!errors.access_token}
-              helperText={errors.access_token}
+              value={formData.api_credentials.bc_access_token || ''}
+              onChange={(e) => handleFormChange('api_credentials.bc_access_token', e.target.value)}
+              error={!!errors.bc_access_token}
+              helperText={errors.bc_access_token}
               margin="normal"
             />
             <TextField

@@ -62,7 +62,6 @@ const Stores = () => {
       // Shopify
       access_token: '',
       // BigCommerce
-      client_id: '',
       bc_access_token: '',
       store_hash: '',
       // WooCommerce
@@ -100,7 +99,6 @@ const Stores = () => {
       store_url: '',
       api_credentials: {
         access_token: '',
-        client_id: '',
         bc_access_token: '',
         store_hash: '',
         consumer_key: '',
@@ -162,9 +160,6 @@ const Stores = () => {
         newErrors.access_token = 'Access token is required for Shopify';
       }
     } else if (formData.type === 'bigcommerce') {
-      if (!formData.api_credentials.client_id.trim()) {
-        newErrors.client_id = 'Client ID is required for BigCommerce';
-      }
       if (!formData.api_credentials.bc_access_token.trim()) {
         newErrors.bc_access_token = 'Access token is required for BigCommerce';
       }
@@ -304,21 +299,13 @@ const Stores = () => {
           <>
             <TextField
               fullWidth
-              label="Client ID"
-              value={formData.api_credentials.client_id || ''}
-              onChange={(e) => handleFormChange('api_credentials.client_id', e.target.value)}
-              error={!!errors.client_id}
-              helperText={errors.client_id}
-              margin="normal"
-            />
-            <TextField
-              fullWidth
               label="Access Token"
               value={formData.api_credentials.bc_access_token || ''}
               onChange={(e) => handleFormChange('api_credentials.bc_access_token', e.target.value)}
               error={!!errors.bc_access_token}
-              helperText={errors.bc_access_token}
+              helperText={errors.bc_access_token || 'Your BigCommerce API access token'}
               margin="normal"
+              placeholder="e.g., lmg7prm3b0fxypwwaja27rtlvqejic0"
             />
             <TextField
               fullWidth
@@ -326,8 +313,9 @@ const Stores = () => {
               value={formData.api_credentials.store_hash || ''}
               onChange={(e) => handleFormChange('api_credentials.store_hash', e.target.value)}
               error={!!errors.store_hash}
-              helperText={errors.store_hash || 'Store hash from BigCommerce API path'}
+              helperText={errors.store_hash || 'Your BigCommerce store hash'}
               margin="normal"
+              placeholder="e.g., tqjrceegho"
             />
           </>
         );

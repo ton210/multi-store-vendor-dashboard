@@ -2,14 +2,12 @@ const axios = require('axios');
 
 class BigCommerceService {
   constructor(storeConfig) {
-    this.storeHash = storeConfig.api_credentials.store_hash;
-    this.clientId = storeConfig.api_credentials.client_id;
-    this.accessToken = storeConfig.api_credentials.access_token;
+    this.storeHash = storeConfig.api_credentials.store_hash || storeConfig.api_credentials.BC_STORE_HASH;
+    this.accessToken = storeConfig.api_credentials.access_token || storeConfig.api_credentials.bc_access_token || storeConfig.api_credentials.BC_ACCESS_TOKEN;
 
     this.axiosInstance = axios.create({
       baseURL: `https://api.bigcommerce.com/stores/${this.storeHash}/v2`,
       headers: {
-        'X-Auth-Client': this.clientId,
         'X-Auth-Token': this.accessToken,
         'Content-Type': 'application/json',
         'Accept': 'application/json'

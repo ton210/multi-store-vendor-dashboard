@@ -12,6 +12,13 @@ import Register from './components/Auth/Register';
 
 // Pages
 import Dashboard from './pages/Dashboard';
+import Orders from './pages/Orders';
+import Stores from './pages/Stores';
+import Vendors from './pages/Vendors';
+import Messages from './pages/Messages';
+import Analytics from './pages/Analytics';
+import Assignments from './pages/Assignments';
+import Settings from './pages/Settings';
 
 // Create theme
 const theme = createTheme({
@@ -94,7 +101,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MainLayout>
-              <div>Orders Page - Coming Soon</div>
+              <Orders />
             </MainLayout>
           </ProtectedRoute>
         }
@@ -104,7 +111,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MainLayout>
-              <div>Stores Page - Coming Soon</div>
+              <Stores />
             </MainLayout>
           </ProtectedRoute>
         }
@@ -114,7 +121,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MainLayout>
-              <div>Vendors Page - Coming Soon</div>
+              <Vendors />
             </MainLayout>
           </ProtectedRoute>
         }
@@ -124,7 +131,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MainLayout>
-              <div>Messages Page - Coming Soon</div>
+              <Messages />
             </MainLayout>
           </ProtectedRoute>
         }
@@ -134,7 +141,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MainLayout>
-              <div>Assignments Page - Coming Soon</div>
+              <Assignments />
             </MainLayout>
           </ProtectedRoute>
         }
@@ -144,7 +151,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MainLayout>
-              <div>Analytics Page - Coming Soon</div>
+              <Analytics />
             </MainLayout>
           </ProtectedRoute>
         }
@@ -154,7 +161,7 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <MainLayout>
-              <div>Settings Page - Coming Soon</div>
+              <Settings />
             </MainLayout>
           </ProtectedRoute>
         }

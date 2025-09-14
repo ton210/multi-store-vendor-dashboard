@@ -35,7 +35,7 @@ import {
   Edit,
   Delete,
   Sync,
-  TestTube,
+  Science,
   Settings,
   Store as StoreIcon,
   CheckCircle,
@@ -495,7 +495,7 @@ const Stores = () => {
                               {testingStore === store.id ? (
                                 <CircularProgress size={16} />
                               ) : (
-                                <TestTube />
+                                <Science />
                               )}
                             </IconButton>
                           </Tooltip>

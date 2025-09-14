@@ -22,13 +22,45 @@ class BigCommerceService {
     });
   }
 
+  async checkScopes() {
+    // Test different endpoints to determine available scopes
+    const testEndpoints = [
+      { path: '/store', scope: 'store_v2_information_read_only' },
+      { path: '/orders', scope: 'store_v2_orders_read_only' },
+      { path: '/products', scope: 'store_v2_products_read_only' }
+    ];
+
+    const availableScopes = [];
+
+    for (const endpoint of testEndpoints) {
+      try {
+        await this.axiosInstance.get(`${endpoint.path}?limit=1`);
+        availableScopes.push(endpoint.scope);
+        console.log(`✅ ${endpoint.scope} - Available`);
+      } catch (error) {
+        console.log(`❌ ${endpoint.scope} - Not available (${error.response?.status})`);
+      }
+    }
+
+    return availableScopes;
+  }
+
   async getOrders(since = null, limit = 50) {
     try {
+      // First, let's check what scopes are available
+      console.log('Checking available API scopes...');
+      const scopes = await this.checkScopes();
+      console.log('Available scopes:', scopes);
+
+      // If we don't have orders scope, throw a helpful error
+      if (!scopes.includes('store_v2_orders_read_only')) {
+        throw new Error('Missing required OAuth scope: store_v2_orders_read_only. Please update your BigCommerce API account permissions.');
+      }
+
       const params = {
-        limit: Math.min(limit, 50), // BigCommerce v3 has lower limits
+        limit: Math.min(limit, 50),
         sort: 'date_created',
-        direction: 'desc',
-        'status_id:in': '1,2,3,4,5,6,7,8,9,10,11'
+        direction: 'desc'
       };
 
       if (since) {
@@ -40,25 +72,19 @@ class BigCommerceService {
       const response = await this.axiosInstance.get('/orders', { params });
       console.log('BigCommerce orders response:', response.data?.length || 0, 'orders');
 
-      // Process orders and get items
-      const orders = [];
-      for (const order of response.data || []) {
-        try {
-          const orderWithItems = await this.getOrderWithItems(order.id);
-          orders.push(orderWithItems);
-          // Add delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
-        } catch (itemError) {
-          console.error(`Failed to get items for order ${order.id}:`, itemError.message);
-          // Still include order even if items fail
-          orders.push(this.transformOrder(order, []));
-        }
-      }
+      // Process orders (simplified to avoid rate limits)
+      const orders = response.data || [];
+      const transformedOrders = orders.map(order => this.transformOrder(order, []));
 
-      return orders;
+      return transformedOrders;
     } catch (error) {
       console.error('BigCommerce API Error:', error.response?.data || error.message);
       console.error('Request config:', error.config?.url, error.config?.headers);
+
+      if (error.response?.status === 403) {
+        throw new Error(`BigCommerce API Permission Error: Your API token lacks required OAuth scopes. Please add 'Orders - Read' permission to your BigCommerce API account. Error: ${error.response?.data?.title || 'Authentication Required'}`);
+      }
+
       throw new Error(`Failed to fetch orders from BigCommerce: ${error.response?.status || error.message}`);
     }
   }

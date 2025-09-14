@@ -28,14 +28,7 @@ import {
   Tooltip,
   LinearProgress,
   Divider,
-  Alert,
-  Timeline,
-  TimelineItem,
-  TimelineSeparator,
-  TimelineConnector,
-  TimelineContent,
-  TimelineDot,
-  TimelineOppositeContent
+  Alert
 } from '@mui/material';
 import {
   Visibility,
@@ -533,34 +526,32 @@ const Assignments = () => {
               <Grid item xs={12} md={6}>
                 <Typography variant="h6" gutterBottom>Assignment Status</Typography>
                 {selectedAssignment.vendor_assignments?.length > 0 && (
-                  <Timeline>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {selectedAssignment.status_history?.map((status, index) => (
-                      <TimelineItem key={index}>
-                        <TimelineOppositeContent sx={{ m: 'auto 0' }} variant="body2" color="text.secondary">
-                          {format(new Date(status.created_at), 'MMM dd, HH:mm')}
-                        </TimelineOppositeContent>
-                        <TimelineSeparator>
-                          <TimelineDot color={getStatusColor(status.new_status)}>
-                            {getStatusIcon(status.new_status)}
-                          </TimelineDot>
-                          {index < selectedAssignment.status_history.length - 1 && <TimelineConnector />}
-                        </TimelineSeparator>
-                        <TimelineContent sx={{ py: '12px', px: 2 }}>
-                          <Typography variant="body2" sx={{ textTransform: 'capitalize', fontWeight: 'bold' }}>
-                            {status.new_status.replace('_', ' ')}
-                          </Typography>
+                      <Paper key={index} sx={{ p: 2 }} variant="outlined">
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                          <Chip
+                            icon={getStatusIcon(status.new_status)}
+                            label={status.new_status.replace('_', ' ')}
+                            color={getStatusColor(status.new_status)}
+                            size="small"
+                            sx={{ textTransform: 'capitalize' }}
+                          />
                           <Typography variant="body2" color="text.secondary">
-                            {status.notes}
+                            {format(new Date(status.created_at), 'MMM dd, HH:mm')}
                           </Typography>
-                          {status.changed_by_name && (
-                            <Typography variant="caption" color="text.secondary">
-                              by {status.changed_by_name}
-                            </Typography>
-                          )}
-                        </TimelineContent>
-                      </TimelineItem>
+                        </Box>
+                        <Typography variant="body2" color="text.secondary">
+                          {status.notes}
+                        </Typography>
+                        {status.changed_by_name && (
+                          <Typography variant="caption" color="text.secondary">
+                            Updated by {status.changed_by_name}
+                          </Typography>
+                        )}
+                      </Paper>
                     ))}
-                  </Timeline>
+                  </Box>
                 )}
               </Grid>
 

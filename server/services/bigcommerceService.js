@@ -11,7 +11,18 @@ class BigCommerceService {
       tokenLength: this.accessToken?.length
     });
 
-    this.axiosInstance = axios.create({
+    // Create separate instances for v2 (orders) and v3 (other resources)
+    this.axiosInstanceV2 = axios.create({
+      baseURL: `https://api.bigcommerce.com/stores/${this.storeHash}/v2`,
+      headers: {
+        'X-Auth-Token': this.accessToken,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    this.axiosInstanceV3 = axios.create({
       baseURL: `https://api.bigcommerce.com/stores/${this.storeHash}/v3`,
       headers: {
         'X-Auth-Token': this.accessToken,
@@ -20,25 +31,30 @@ class BigCommerceService {
       },
       timeout: 30000
     });
+
+    // Default to v2 for backward compatibility
+    this.axiosInstance = this.axiosInstanceV2;
   }
 
   async checkScopes() {
     // Test different endpoints to determine available scopes
     const testEndpoints = [
-      { path: '/store', scope: 'store_v2_information_read_only' },
-      { path: '/orders', scope: 'store_v2_orders_read_only' },
-      { path: '/products', scope: 'store_v2_products_read_only' }
+      { path: '/store', instance: 'v2', scope: 'store_v2_information_read_only' },
+      { path: '/orders', instance: 'v2', scope: 'store_v2_orders_read_only' },
+      { path: '/products', instance: 'v2', scope: 'store_v2_products_read_only' },
+      { path: '/catalog/products', instance: 'v3', scope: 'store_v2_products_read_only' }
     ];
 
     const availableScopes = [];
 
     for (const endpoint of testEndpoints) {
       try {
-        await this.axiosInstance.get(`${endpoint.path}?limit=1`);
+        const axiosInstance = endpoint.instance === 'v3' ? this.axiosInstanceV3 : this.axiosInstanceV2;
+        const response = await axiosInstance.get(`${endpoint.path}?limit=1`);
         availableScopes.push(endpoint.scope);
-        console.log(`✅ ${endpoint.scope} - Available`);
+        console.log(`✅ ${endpoint.scope} - Available (${endpoint.instance}${endpoint.path})`);
       } catch (error) {
-        console.log(`❌ ${endpoint.scope} - Not available (${error.response?.status})`);
+        console.log(`❌ ${endpoint.scope} - Not available (${error.response?.status}) (${endpoint.instance}${endpoint.path})`);
       }
     }
 
@@ -58,18 +74,17 @@ class BigCommerceService {
       }
 
       const params = {
-        limit: Math.min(limit, 50),
-        sort: 'date_created',
-        direction: 'desc'
+        limit: Math.min(limit, 250), // v2 supports higher limits
+        sort: 'date_created:desc'
       };
 
       if (since) {
         params.min_date_created = since;
       }
 
-      console.log('Fetching orders with params:', params);
+      console.log('Fetching orders with v2 API and params:', params);
 
-      const response = await this.axiosInstance.get('/orders', { params });
+      const response = await this.axiosInstanceV2.get('/orders', { params });
       console.log('BigCommerce orders response:', response.data?.length || 0, 'orders');
 
       // Process orders (simplified to avoid rate limits)
@@ -103,12 +118,12 @@ class BigCommerceService {
       // Add delay to avoid rate limiting
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      const orderResponse = await this.axiosInstance.get(`/orders/${orderId}`);
+      const orderResponse = await this.axiosInstanceV2.get(`/orders/${orderId}`);
 
       // Add delay before getting items
       await new Promise(resolve => setTimeout(resolve, 50));
 
-      const itemsResponse = await this.axiosInstance.get(`/orders/${orderId}/products`);
+      const itemsResponse = await this.axiosInstanceV2.get(`/orders/${orderId}/products`);
 
       const order = orderResponse.data;
       const items = itemsResponse.data;
@@ -140,11 +155,11 @@ class BigCommerceService {
         default: statusId = 1;
       }
 
-      const response = await this.axiosInstance.put(`/orders/${orderId}`, {
+      const response = await this.axiosInstanceV2.put(`/orders/${orderId}`, {
         status_id: statusId
       });
 
-      const items = await this.axiosInstance.get(`/orders/${orderId}/products`);
+      const items = await this.axiosInstanceV2.get(`/orders/${orderId}/products`);
       return this.transformOrder(response.data, items.data);
     } catch (error) {
       console.error('BigCommerce API Error:', error.response?.data || error.message);

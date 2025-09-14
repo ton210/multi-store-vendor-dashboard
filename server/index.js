@@ -14,6 +14,11 @@ const orderRoutes = require('./routes/orders');
 const vendorRoutes = require('./routes/vendors');
 const messageRoutes = require('./routes/messages');
 const dashboardRoutes = require('./routes/dashboard');
+const orderSplittingRoutes = require('./routes/orderSplitting');
+const trackingRoutes = require('./routes/tracking');
+const communicationsRoutes = require('./routes/communications');
+const uploadsRoutes = require('./routes/uploads');
+const zakekeRoutes = require('./routes/zakeke');
 
 const app = express();
 const server = http.createServer(app);
@@ -58,12 +63,27 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/vendors', vendorRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/order-splitting', orderSplittingRoutes);
+app.use('/api/tracking', trackingRoutes);
+app.use('/api/communications', communicationsRoutes);
+app.use('/api/uploads', uploadsRoutes);
+app.use('/api/zakeke', zakekeRoutes);
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../client/dist')));
 
   app.get('*', (req, res) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
     res.sendFile(path.join(__dirname, '../client/dist', 'index.html'));
+  });
+} else {
+  app.get('/', (req, res) => {
+    res.json({ message: 'Multi-Store Vendor Dashboard API' });
   });
 }
 

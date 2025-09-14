@@ -2,9 +2,13 @@ const express = require('express');
 const db = require('../config/database');
 const { authenticateToken, requireAdminOrManager, requireVendor } = require('../middleware/auth');
 const StoreIntegrationService = require('../services/storeIntegrationService');
+const SlackService = require('../services/slackService');
+const ZakekeService = require('../services/zakekeService');
 
 const router = express.Router();
 const storeService = new StoreIntegrationService();
+const slackService = new SlackService();
+const zakekeService = new ZakekeService();
 
 // Get orders with filters and pagination
 router.get('/', authenticateToken, async (req, res) => {
@@ -271,6 +275,30 @@ router.post('/:id/assign', authenticateToken, requireAdminOrManager, async (req,
       `You have been assigned order #${order.order_number}`,
       JSON.stringify({ order_id: orderId, assignment_id: assignmentQuery.rows[0].id })
     ]);
+
+    // Send Slack notification
+    try {
+      await slackService.notifyOrderAssigned({
+        order_number: order.order_number,
+        vendor_name: vendor.company_name || 'Vendor',
+        assignment_type: assignment_type,
+        commission_amount: commissionAmount.toFixed(2),
+        customer_name: order.customer_name,
+        total_amount: order.total_amount
+      });
+    } catch (slackError) {
+      console.error('Slack notification failed:', slackError);
+    }
+
+    // Check if this is a Zakeke order and auto-sync
+    try {
+      const zakekeDetection = await zakekeService.detectZakekeOrder(order);
+      if (zakekeDetection.is_zakeke_order && zakekeDetection.zakeke_order_id) {
+        await zakekeService.syncZakekeOrder(orderId, zakekeDetection.zakeke_order_id);
+      }
+    } catch (zakekeError) {
+      console.error('Zakeke auto-sync failed:', zakekeError);
+    }
 
     res.json({
       message: 'Vendor assigned successfully',
